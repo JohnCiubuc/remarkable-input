@@ -79,18 +79,20 @@ def open_remote_device(args, file='/dev/input/event1'):
 
 def main():
     try:
+        #10.11.99.1
+#192.168.1.238
+        default_address = '10.11.99.1'
         parser = argparse.ArgumentParser(description="use reMarkable tablet as a mouse input")
         parser.add_argument('--debug', action='store_true', default=False, help="enable debug messages")
         parser.add_argument('--key', type=str, metavar='PATH', help="ssh private key")
         parser.add_argument('--password', default=None, type=str, help="ssh password")
-        parser.add_argument('--address', default='10.11.99.1', type=str, help="device address")
+        parser.add_argument('--address', default=default_address, type=str, help="device address")
         parser.add_argument('--mode', default='fill', choices=['fit', 'fill'], help="scale setting")
         parser.add_argument('--orientation', default='right', choices=['top', 'left', 'right', 'bottom'], help="position of tablet buttons")
         parser.add_argument('--monitor', default=0, type=int, metavar='NUM', help="monitor to output to")
         parser.add_argument('--threshold', metavar='THRESH', default=600, type=int, help="stylus pressure threshold (default 600)")
         parser.add_argument('--evdev', action='store_true', default=False, help="use evdev to support pen pressure (requires root, Linux only)")
 
-#192.168.1.238
         args = parser.parse_args()
 
         # remote_device_fingers = open_remote_device(args)

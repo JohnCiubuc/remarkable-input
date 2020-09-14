@@ -4,6 +4,7 @@ import math
 from screeninfo import get_monitors
 import threading
 import time
+import os
 
 from queue import Queue 
 logging.basicConfig(format='%(message)s')
@@ -271,6 +272,9 @@ def read_tablet_fingers(args, q):
     read_block = 10
     UseMouse = False
     MaxFingers = 0;
+    FingerMouseMode = False
+    previous_coords = (0,0)
+    break_counter = 0
     while True:
         _, _, e_type, e_code, e_value = struct.unpack('2IHHi', remote_device.read(16))
 
@@ -287,104 +291,140 @@ def read_tablet_fingers(args, q):
         # q.task_done()
         # print(q.value, bool(q.value) == False)
         # print("read_tablet_fingers",pen_is_active)
-        if bool(q.value) is False:
     
-            # continue
-            if e_code == 47:
-                # if e_value == 0:
-                finger_id = e_value 
-                # else:
-                    # finger_id = 2
-                continue
-            # if e_code == 54:
-                
-            #     print("%s: %d = %d" % (finger_id,e_code, e_value));
-            # if e_code == 3:
-            #     print("%s: %d = %d" % (finger_id,e_code, e_value));
-                # print("%d = %d" % (e_code, e_value));
-            # if e_code == 54 or e_code == 53 or e_code == 0 or e_code == 58:
-            #     continue;
+
+        # continue
+        if e_code == 47:
+            # if e_value == 0:
+            finger_id = e_value 
             # else:
-            #     continue;
-            #     print("%d = %d" % (e_code, e_value));
-           
-            if e_type == e_type_abs:
-    
-                if read_block < 3:
-                    read_block = read_block + 1
-                # handle fingers
-                if e_code == evcode_finger_touch:
-                    log.debug(e_value)
-                    read_block = 0
-                    # finger removed
-                    if e_value == -1:
-                        fingers = fingers - 1
-                        if fingers == 0:
-                            old_y = 0
-                            distance = 0
-                            initial_zoom = True
-                            # if MaxFingers == 1:
-                            #     key.press(' ')
-                            #     key.release(' ')
-                            # if MaxFingers == 2:
-                            #     key.press('2')
-                            #     key.release('2')
-                            # if MaxFingers == 3:
-                            #     key.press('3')
-                            #     key.release('3')
-                            # if MaxFingers == 4:
-                            #     key.press('4')
-                            #     key.release('4')
-                            # if MaxFingers == 5:
-                            #     key.press('1')
-                            #     key.release('1')
+                # finger_id = 2
+            continue
+        # if e_code == 54:
+            
+            # print("X- %d = %d" % (e_code, e_value));
+        # if e_code == 53:
+            # print("Y - %d = %d" % (e_code, e_value));
+        # if e_code == 54 or e_code == 53 or e_code == 0 or e_code == 58:
+        #     continue;
+        # else:
+        #     continue;
+        #     print("%d = %d" % (e_code, e_value));
+       
+        if e_type == e_type_abs:
+
+            # handle fingers
+            if e_code == evcode_finger_touch:
+                log.debug(e_value)
+                # read_block = 0
+                # finger removed
+                if e_value == -1:
+                    fingers = fingers - 1
+                    
+                    if MaxFingers == 2:
+                        if FingerMouseMode:
+                            mouse.release(pynput.mouse.Button.left)
+                    if fingers == 0:
+                        old_y = 0
+                        distance = 0
+                        initial_zoom = True
+                        previous_coords = (0, 0)
+                        print("reset" ,previous_coords)
+                        # if MaxFingers == 1:
+                        #     key.press(' ')
+                        # #     key.release(' ')
+                        # if MaxFingers == 2:
+                        #     print("rem 1")
+                        #     if FingerMouseMode:
+                        #         mouse.release(pynput.mouse.Button.left)
+                        #         print("rem 2")
+                        if MaxFingers == 3:
+                            print(bool(q.value))
+                        if MaxFingers == 4:
+                            FingerMouseMode = not FingerMouseMode;
+                            print("FingerMouseMode: ", FingerMouseMode)
+                        # if MaxFingers == 5:
+                        #     key.press('1')
+                        #     key.release('1')
+                    
+                # finger added
+                else:
+                    fingers = fingers + 1
+                    MaxFingers = fingers
+                    if MaxFingers == 2 and FingerMouseMode:
+                        mouse.press(pynput.mouse.Button.left)
                         
-                    # finger added
-                    else:
-                        fingers = fingers + 1
-                        MaxFingers = fingers
-                    if fingers > 2:
-                        UseMouse = not UseMouse
-                    continue
+                # if fingers > 2:
+                #     UseMouse = not UseMouse
+                # continue
+            
+            
+            # if read_block < 3:
+            #     read_block = read_block + 1
+            # handle x direction
+            if e_code == evcode_finger_xpos:
+                log.debug(e_value)
+                x = e_value
+                new_x = True
+                if finger_id == 0:
+                    finger_one = (x, finger_one[1])
+                elif finger_id == 1:
+                    finger_two = (x, finger_two[1])
+
+            # handle y direction
+            if e_code == evcode_finger_ypos:
+                log.debug('\t{}'.format(e_value))
+                y = e_value
+                new_y = True
+                if finger_id == 0:
+                    finger_one = (finger_one[0], y)
+                elif finger_id == 1:
+                    finger_two = (finger_one[0], y)
+
+
+        #     # only move when x and y are updated for smoother mouse
+        
+            if y < 50:
+                if new_x or new_y:   
+                    mapped_x, mapped_y = remap_finger(
+                    x, y,
+                    finger_width, finger_height,
+                    monitor.width, monitor.height,
+                    args.mode, args.orientation)
+                    string = "pactl set-sink-volume  alsa_output.usb-D___M_Holdings_Inc._HD-DAC1-00.iec958-stereo "
+                    string = string + str(int((1 - x/ finger_width)*100)) + "%"
+
+                    break_counter = break_counter + 1
+                    if break_counter > 10:
+                        os.system(string)
+                        break_counter = 0
+                    # print(string)
+        
+            elif (bool(q.value) is True and y > 950):
+                 if new_x or new_y:    
                 
-                # handle x direction
-                if e_code == evcode_finger_xpos:
-                    log.debug(e_value)
-                    x = e_value
-                    new_x = True
-                    if finger_id == 0:
-                        finger_one = (x, finger_one[1])
-                    elif finger_id == 1:
-                        finger_two = (x, finger_two[1])
+                    mapped_x, mapped_y = remap_finger(
+                    x, y,
+                    finger_width, finger_height,
+                    monitor.width, monitor.height,
+                    args.mode, args.orientation)
     
-                # handle y direction
-                if e_code == evcode_finger_ypos:
-                    log.debug('\t{}'.format(e_value))
-                    y = e_value
-                    new_y = True
-                    if finger_id == 0:
-                        finger_one = (finger_one[0], y)
-                    elif finger_id == 1:
-                        finger_two = (finger_one[0], y)
-    
-                # handle draw
-                if e_code == e_code_stylus_pressure:
-                    log.debug('\t\t{}'.format(e_value))
-                    if e_value > args.threshold:
-                        if lifted:
-                            log.debug('PRESS')
-                            lifted = False
-                            mouse.press(Button.left)
-                    else:
-                        if not lifted:
-                            log.debug('RELEASE')
-                            lifted = True
-                            mouse.release(Button.left)
-    
-    
-            #     # only move when x and y are updated for smoother mouse
+                    if old_y == 0:
+                        old_y = mapped_y
+                        continue
+                    y_displace = (mapped_y - old_y);
+                    if y_displace > 50:
+                        # print("Pos %d", y_displace);
+                        mouse.scroll(0, 1)
+                        old_y = mapped_y
+                    elif y_displace < -50:
+                        # print("Neg %d", y_displace);
+                        mouse.scroll(0, -1)
+                        old_y = mapped_y
+                        
+            elif bool(q.value) is False:
                 if new_x or new_y:    
-                    if fingers == 2:         
+                    if fingers == 2 and not FingerMouseMode:         
                         if read_block < 3:
                             continue
                         new_distance = calculateDistance(finger_one[0], finger_one[1], finger_two[0], finger_two[1])
@@ -420,10 +460,36 @@ def read_tablet_fingers(args, q):
                                 key.release(pynput.keyboard.Key.ctrl)
                         continue
                         
+                    
+                    if fingers == 2 and FingerMouseMode:
+                        mapped_x, mapped_y = remap_finger(
+                        finger_one[0], finger_one[1],
+                        finger_width, finger_height,
+                        monitor.width, monitor.height,
+                        args.mode, args.orientation)
+                        
+                        if previous_coords == (0,0):
+                            previous_coords = (mapped_x, mapped_y)
+                        elif abs(previous_coords[0] - mapped_x) > 100 or \
+                        abs(previous_coords[1] - mapped_y) > 100:
+                            previous_coords = (mapped_x, mapped_y)
+                            continue
+                                    
+                        previous_coords = (mapped_x, mapped_y)
+                        
+                        mouse.move(
+                            monitor.x + mapped_x - mouse.position[0],
+                            monitor.y + mapped_y - mouse.position[1]
+                        )
+                        mouse.move(
+                            monitor.x + mapped_x - mouse.position[0],
+                            monitor.y + mapped_y - mouse.position[1]
+                        )
+                        new_x = new_y = False
     
                     if fingers == 1:
                         mapped_x, mapped_y = remap_finger(
-                        x, y,
+                        finger_one[0], finger_one[1],
                         finger_width, finger_height,
                         monitor.width, monitor.height,
                         args.mode, args.orientation)
@@ -433,7 +499,10 @@ def read_tablet_fingers(args, q):
                     #     monitor.width, monitor.height,
                     #     args.mode, args.orientation
                     #     )
-                        if UseMouse:
+                        if FingerMouseMode:
+                            # if previous_coords == (0,0):
+                            #     previous_coords = (mapped_x, mapped_y)
+                            
                             mouse.move(
                                 monitor.x + mapped_x - mouse.position[0],
                                 monitor.y + mapped_y - mouse.position[1]
