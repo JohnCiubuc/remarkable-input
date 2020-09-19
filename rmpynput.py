@@ -48,7 +48,7 @@ log = logging.getLogger(__name__)
 def calculateDistance(x1,y1,x2,y2):  
      dist = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)  
      return dist  
- 
+
 def open_remote_device(args, file='/dev/input/event1'):
     """
     Open a remote input device via SSH.

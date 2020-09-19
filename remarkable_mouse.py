@@ -57,7 +57,7 @@ def main():
             pipe_device(args, remote_device, local_device)
 
         else:
-            from rmpynput import CancellationToken,read_tablet, read_tablet_fingers
+            from rmpynput import read_tablet, read_tablet_fingers
             
             d = Manager().dict()
             d['pen_is_active'] = False
