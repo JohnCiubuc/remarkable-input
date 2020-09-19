@@ -208,7 +208,9 @@ def read_tablet(args, shared_dict):
                     shared_dict['pen_exit_event'] = True
                 shared_dict['pen_is_active'] = False
                 
-                
+        # Disable pen commands
+        elif not shared_dict['set_pen_active']:
+            continue
         elif e_type == e_type_abs:
             
             # handle x direction
@@ -287,6 +289,8 @@ def read_tablet_fingers(args, shared_dict):
     previous_coords = (0,0)
     break_counter = 0
     t0 = -1
+    
+    disable_tablet = False
     
     def reset_values():
         old_y = 0
@@ -370,9 +374,9 @@ def read_tablet_fingers(args, shared_dict):
                         if MaxFingers == 4:
                             FingerMouseMode = not FingerMouseMode;
                             print("FingerMouseMode: ", FingerMouseMode)
-                        # if MaxFingers == 5:
-                        #     key.press('1')
-                        #     key.release('1')
+                        if MaxFingers == 5:
+                            disable_tablet = not disable_tablet
+                            shared_dict['set_pen_active'] = not disable_tablet
                     
                 # finger added
                 else:
@@ -381,9 +385,8 @@ def read_tablet_fingers(args, shared_dict):
                     if MaxFingers == 2 and FingerMouseMode:
                         mouse.press(pynput.mouse.Button.left)
                         
-                # if fingers > 2:
-                #     UseMouse = not UseMouse
-                # continue
+
+            # Ignore finger input for X seconds after pen leaves
             if shared_dict['pen_exit_event'] == True:
                 shared_dict['pen_exit_event'] = False            
                 t0 = time.time()
@@ -397,11 +400,13 @@ def read_tablet_fingers(args, shared_dict):
                     y_displace = 0
                     previous_coords = (0, 0)
                     zoom_skip_next_hotfix = 0
-                    # fingers = 0
                     continue
-                    # print(new_x, new_y, fingers, y_displace, initial_zoom, MaxFingers)
                 else:
                     continue
+                
+            # Disable finger commands
+            if disable_tablet:
+                continue
                 
             # if read_block < 3:
             #     read_block = read_block + 1
