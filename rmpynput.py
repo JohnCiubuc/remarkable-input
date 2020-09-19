@@ -5,6 +5,7 @@ from screeninfo import get_monitors
 import threading
 import time
 import os
+from threading import Timer
 
 from queue import Queue 
 logging.basicConfig(format='%(message)s')
@@ -35,8 +36,6 @@ finger_width = 767
 finger_height = 1023
 
 
-c = threading.Condition()
-pen_is_active = False
 from getpass import getpass
 from multiprocessing import Process, Value, Queue, cpu_count, current_process
 import paramiko
@@ -44,6 +43,11 @@ import paramiko.agent
 
 logging.basicConfig(format='%(message)s')
 log = logging.getLogger(__name__)
+
+
+def timeout(pauser):
+    print("timer pause")
+    pauser = False
 
 class CancellationToken:
    def __init__(self):
@@ -176,11 +180,10 @@ def remap_finger(x, y, finger_width, finger_height, monitor_width,
         scaling * (y - (finger_height - monitor_height / scaling) / 2)
     )
 
-def read_tablet(args, q):
+def read_tablet(args, shared_dict):
     """Loop forever and map evdev events to mouse"""
 
     from pynput.mouse import Button, Controller
-    global pen_is_active
 
     remote_device = open_remote_device(args, '/dev/input/event0')
     lifted = True
@@ -194,11 +197,18 @@ def read_tablet(args, q):
     while True:
         _, _, e_type, e_code, e_value = struct.unpack('2IHHi', remote_device.read(16))
 
+
+        # Set Pen active state
+        # Set toggle if pen is active and now it isnt
         if e_code == e_code_stylus_present:
-            
-            # c.acquire()
-            pen_is_active = True if e_value == 1 else False
-            q.value =pen_is_active            
+            if e_value == 1:
+                shared_dict['pen_is_active'] = True
+            else:
+                if shared_dict['pen_is_active']:
+                    shared_dict['pen_exit_event'] = True
+                shared_dict['pen_is_active'] = False
+                
+                
         elif e_type == e_type_abs:
             
             # handle x direction
@@ -242,7 +252,7 @@ def read_tablet(args, q):
                 )
                 new_x = new_y = False
 
-def read_tablet_fingers(args, q):
+def read_tablet_fingers(args, shared_dict):
     """Loop forever and map evdev events to mouse"""
     global pen_is_active
     import pynput
@@ -264,6 +274,7 @@ def read_tablet_fingers(args, q):
     y = 0
     fingers = 0
     old_y = 0
+    zoom_skip_next_hotfix = 0 # counts to two
     finger_id = 0
     finger_one = (0,0)
     finger_two = (0,0)
@@ -275,8 +286,23 @@ def read_tablet_fingers(args, q):
     FingerMouseMode = False
     previous_coords = (0,0)
     break_counter = 0
+    t0 = -1
+    
+    def reset_values():
+        old_y = 0
+        distance = 0
+        initial_zoom = True
+        y_displace = 0
+        previous_coords = (0, 0)
+        zoom_skip_next_hotfix = 0
+        fingers=0
+        new_x = new_y = False
     while True:
         _, _, e_type, e_code, e_value = struct.unpack('2IHHi', remote_device.read(16))
+
+
+        # Pen has just left the tablet
+        # full second delay
 
 # 53 = Y
 # 54 = X
@@ -309,7 +335,7 @@ def read_tablet_fingers(args, q):
         #     continue;
         # else:
         #     continue;
-        #     print("%d = %d" % (e_code, e_value));
+        
        
         if e_type == e_type_abs:
 
@@ -328,8 +354,9 @@ def read_tablet_fingers(args, q):
                         old_y = 0
                         distance = 0
                         initial_zoom = True
+                        y_displace = 0
                         previous_coords = (0, 0)
-                        print("reset" ,previous_coords)
+                        zoom_skip_next_hotfix = 0
                         # if MaxFingers == 1:
                         #     key.press(' ')
                         # #     key.release(' ')
@@ -338,8 +365,8 @@ def read_tablet_fingers(args, q):
                         #     if FingerMouseMode:
                         #         mouse.release(pynput.mouse.Button.left)
                         #         print("rem 2")
-                        if MaxFingers == 3:
-                            print(bool(q.value))
+                        # if MaxFingers == 3:
+                            # print(bool(q.value))
                         if MaxFingers == 4:
                             FingerMouseMode = not FingerMouseMode;
                             print("FingerMouseMode: ", FingerMouseMode)
@@ -357,8 +384,25 @@ def read_tablet_fingers(args, q):
                 # if fingers > 2:
                 #     UseMouse = not UseMouse
                 # continue
-            
-            
+            if shared_dict['pen_exit_event'] == True:
+                shared_dict['pen_exit_event'] = False            
+                t0 = time.time()
+            if t0 != -1:
+                if time.time() - t0 > 0.2:
+                    t0 = -1
+                    new_x = new_y = False
+                    old_y = 0
+                    distance = 0
+                    initial_zoom = True
+                    y_displace = 0
+                    previous_coords = (0, 0)
+                    zoom_skip_next_hotfix = 0
+                    # fingers = 0
+                    continue
+                    # print(new_x, new_y, fingers, y_displace, initial_zoom, MaxFingers)
+                else:
+                    continue
+                
             # if read_block < 3:
             #     read_block = read_block + 1
             # handle x direction
@@ -376,6 +420,7 @@ def read_tablet_fingers(args, q):
                 log.debug('\t{}'.format(e_value))
                 y = e_value
                 new_y = True
+                
                 if finger_id == 0:
                     finger_one = (finger_one[0], y)
                 elif finger_id == 1:
@@ -392,15 +437,19 @@ def read_tablet_fingers(args, q):
                     monitor.width, monitor.height,
                     args.mode, args.orientation)
                     string = "pactl set-sink-volume  alsa_output.usb-D___M_Holdings_Inc._HD-DAC1-00.iec958-stereo "
-                    string = string + str(int((1 - x/ finger_width)*100)) + "%"
+                    string = string + str(int((1 - x / finger_width)*150)) + "%"
 
+                    # string = 'xrandr "--output" "DisplayPort-0" "--brightness" '
+                    # string = string + str(((1 - x/ finger_width)))
+                    # print(string)
                     break_counter = break_counter + 1
                     if break_counter > 10:
                         os.system(string)
                         break_counter = 0
                     # print(string)
         
-            elif (bool(q.value) is True and y > 950):
+            elif (bool(shared_dict['pen_is_active']) is True and y > 950) or \
+                 (FingerMouseMode is True and y > 950):
                  if new_x or new_y:    
                 
                     mapped_x, mapped_y = remap_finger(
@@ -422,8 +471,9 @@ def read_tablet_fingers(args, q):
                         mouse.scroll(0, -1)
                         old_y = mapped_y
                         
-            elif bool(q.value) is False:
+            elif bool(shared_dict['pen_is_active']) is False:
                 if new_x or new_y:    
+                    # print(fingers, FingerMouseMode)
                     if fingers == 2 and not FingerMouseMode:         
                         if read_block < 3:
                             continue
@@ -511,17 +561,22 @@ def read_tablet_fingers(args, q):
                     # elif finger_id == 1:
                         
                         else:
-        
-                            if old_y == 0:
+                            zoom_skip_next_hotfix = zoom_skip_next_hotfix+1
+                            # Hotfix for scroll jump
+                            if zoom_skip_next_hotfix > 2:      
+                                zoom_skip_next_hotfix = 3 # prevent overflow?
+                                y_displace = (mapped_y - old_y);
+                                if y_displace > 50:
+                                    # print("Pos %d", y_displace);
+                                    mouse.scroll(0, 1)
+                                    old_y = mapped_y
+                                elif y_displace < -50:
+                                    # print("Neg %d", y_displace);
+                                    mouse.scroll(0, -1)
+                                    old_y = mapped_y
+                            else:
                                 old_y = mapped_y
-                                continue
-                            y_displace = (mapped_y - old_y);
-                            if y_displace > 50:
-                                # print("Pos %d", y_displace);
-                                mouse.scroll(0, 1)
-                                old_y = mapped_y
-                            elif y_displace < -50:
-                                # print("Neg %d", y_displace);
-                                mouse.scroll(0, -1)
-                                old_y = mapped_y
+                                    
+                                    
+                                
                         

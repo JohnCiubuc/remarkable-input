@@ -8,7 +8,7 @@ import os
 import sys
 import struct
 from getpass import getpass
-from multiprocessing import Process, Value, Queue, cpu_count, current_process
+from multiprocessing import Process, Manager, Value, Queue, cpu_count, current_process
 import paramiko
 import paramiko.agent
 from queue import Queue 
@@ -82,6 +82,7 @@ def main():
         #10.11.99.1
 #192.168.1.238
         default_address = '10.11.99.1'
+        # default_address = '192.168.1.238'
         parser = argparse.ArgumentParser(description="use reMarkable tablet as a mouse input")
         parser.add_argument('--debug', action='store_true', default=False, help="enable debug messages")
         parser.add_argument('--key', type=str, metavar='PATH', help="ssh private key")
@@ -123,9 +124,13 @@ def main():
             
             cancellationToken = CancellationToken()
             val = Value('b',False)
-            q = Queue()
-            p1 = Process(target=read_tablet, args=(args,val))
-            p2 = Process(target=read_tablet_fingers, args=(args,val))
+            pause_pen = Value('b',False)
+            d = Manager().dict()
+            d['pen_is_active'] = False
+            d['set_pen_active'] = True
+            d['pen_exit_event'] = False
+            p1 = Process(target=read_tablet, args=(args,d))
+            p2 = Process(target=read_tablet_fingers, args=(args,d))
             p1.start()
             p2.start()
             p1.join()
