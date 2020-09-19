@@ -45,19 +45,10 @@ logging.basicConfig(format='%(message)s')
 log = logging.getLogger(__name__)
 
 
-def timeout(pauser):
-    print("timer pause")
-    pauser = False
-
-class CancellationToken:
-   def __init__(self):
-       self.is_active = False
-
-   def active(self):
-       self.is_active = True
-   def deactive(self):
-       self.is_active = False
-
+def calculateDistance(x1,y1,x2,y2):  
+     dist = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)  
+     return dist  
+ 
 def open_remote_device(args, file='/dev/input/event1'):
     """
     Open a remote input device via SSH.
@@ -119,9 +110,6 @@ def open_remote_device(args, file='/dev/input/event1'):
     return stdout
 
 
-def calculateDistance(x1,y1,x2,y2):  
-     dist = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)  
-     return dist  
 
 # remap wacom coordinates to screen coordinates
 def remap(x, y, wacom_width, wacom_height, monitor_width,

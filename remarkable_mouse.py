@@ -15,68 +15,6 @@ from queue import Queue
 logging.basicConfig(format='%(message)s')
 log = logging.getLogger(__name__)
 
-
-def open_remote_device(args, file='/dev/input/event1'):
-    """
-    Open a remote input device via SSH.
-
-    Args:
-        args: argparse arguments
-        file (str): path to the input device on the device
-    Returns:
-        (paramiko.ChannelFile): read-only stream of input events
-    """
-    log.info("Connecting to input '{}' on '{}'".format(file, args.address))
-
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    pkey = None
-    password = None
-
-    agent = paramiko.agent.Agent()
-
-    if args.key is not None:
-        password = None
-        try:
-            pkey = paramiko.RSAKey.from_private_key_file(os.path.expanduser(args.key))
-        except paramiko.ssh_exception.PasswordRequiredException:
-            passphrase = getpass(
-                "Enter passphrase for key '{}': ".format(os.path.expanduser(args.key))
-            )
-            pkey = paramiko.RSAKey.from_private_key_file(
-                os.path.expanduser(args.key),
-                password=passphrase
-            )
-    elif args.password:
-        password = args.password
-        pkey = None
-    elif not agent.get_keys():
-        password = getpass(
-            "Password for '{}': ".format(args.address)
-        )
-        pkey = None
-
-    client.connect(
-        args.address,
-        username='root',
-        password=password,
-        pkey=pkey,
-        look_for_keys=False 
-    )
-
-    session = client.get_transport().open_session()
-
-    paramiko.agent.AgentRequestHandler(session)
-
-    # Start reading events
-    _, stdout, _ = client.exec_command('cat ' + file)
-
-    print("connected to", args.address)
-
-    return stdout
-
-
 def main():
     try:
         #10.11.99.1
@@ -120,11 +58,7 @@ def main():
 
         else:
             from rmpynput import CancellationToken,read_tablet, read_tablet_fingers
-            print("pre")
             
-            cancellationToken = CancellationToken()
-            val = Value('b',False)
-            pause_pen = Value('b',False)
             d = Manager().dict()
             d['pen_is_active'] = False
             d['set_pen_active'] = True
