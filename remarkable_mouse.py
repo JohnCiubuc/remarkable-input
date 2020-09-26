@@ -14,9 +14,36 @@ import paramiko.agent
 from queue import Queue 
 logging.basicConfig(format='%(message)s')
 log = logging.getLogger(__name__)
+import time
 
+import socket
+import sys
+
+
+def monitorComms():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect(('10.11.99.1', 13337))
+    # s.sendall('Hello, world')
+    while True:
+        time.sleep(1)
+        data = s.recv(1024)
+    # s.close()
+        if data != 0:
+            print('Received', data)
+            if data == b'':
+                break
+            tokens = data.decode("utf-8").split('==split==')
+            if len(tokens) > 1:
+                if tokens[0] == 'launch':
+                    os.system("xdg-open " + tokens[1])
+                    os.system(tokens[1])
+                    print(tokens[1])
+        
 def main():
     try:
+        M = Process(target=monitorComms)
+        M.start()
+        # M.join()
         #10.11.99.1
 #192.168.1.238
         default_address = '10.11.99.1'
@@ -34,6 +61,11 @@ def main():
 
         args = parser.parse_args()
 
+        # os.system('mkdir /tmp/remarkable')
+        # os.system("sshfs root@10.11.99.1:/ /tmp/remarkable")  
+        # w = Watcher()
+      
+    # w.run()
         # remote_device_fingers = open_remote_device(args)
         # remote_device = open_remote_device(args, '/dev/input/event0')
         if args.debug:
@@ -58,7 +90,8 @@ def main():
 
         else:
             from rmpynput import read_tablet, read_tablet_fingers
-            
+          
+        
             d = Manager().dict()
             d['pen_is_active'] = False
             d['set_pen_active'] = True

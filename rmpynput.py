@@ -278,7 +278,9 @@ def read_tablet_fingers(args, shared_dict):
     break_counter = 0
     t0 = -1
     
+    click_started = False
     disable_tablet = False
+    
     
     def reset_values():
         old_y = 0
@@ -422,7 +424,7 @@ def read_tablet_fingers(args, shared_dict):
 
         #     # only move when x and y are updated for smoother mouse
         
-            if y < 50:
+            if y < 25:
                 if new_x or new_y:   
                     mapped_x, mapped_y = remap_finger(
                     x, y,
@@ -458,11 +460,11 @@ def read_tablet_fingers(args, shared_dict):
                     if y_displace > 50:
                         # print("Pos %d", y_displace);
                         mouse.scroll(0, 1)
-                        old_y = mapped_y
+                        old_y = mapped_y 
                     elif y_displace < -50:
                         # print("Neg %d", y_displace);
                         mouse.scroll(0, -1)
-                        old_y = mapped_y
+                        old_y = mapped_y 
                         
             elif bool(shared_dict['pen_is_active']) is False:
                 if new_x or new_y:    
@@ -483,8 +485,10 @@ def read_tablet_fingers(args, shared_dict):
                                 zoom_threshold = 200
                             if diff > zoom_threshold:
                                 initial_zoom = False
-                                distance = new_distance;
-                                print("BIG")
+                                
+                                print("BIG", diff,new_distance)
+                                distance = new_distance-50;
+                                continue
                                 key.press(pynput.keyboard.Key.ctrl)
                                 key.press('+')
                                 key.release('+')
@@ -493,8 +497,9 @@ def read_tablet_fingers(args, shared_dict):
                                 key.release(pynput.keyboard.Key.ctrl)
                             elif diff < -zoom_threshold:
                                 initial_zoom = False
-                                distance = new_distance;
-                                print("SMALL")
+                                print("SMALL",diff,new_distance)
+                                distance = new_distance+50;
+                                continue
                                 key.press(pynput.keyboard.Key.ctrl)
                                 key.press('-')
                                 key.release('-')
