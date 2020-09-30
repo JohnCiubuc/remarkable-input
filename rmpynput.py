@@ -281,6 +281,7 @@ def read_tablet_fingers(args, shared_dict):
     click_started = False
     disable_tablet = False
     
+    finger_left_down = False
     
     def reset_values():
         old_y = 0
@@ -344,6 +345,7 @@ def read_tablet_fingers(args, shared_dict):
                     if MaxFingers == 2:
                         if FingerMouseMode:
                             mouse.release(pynput.mouse.Button.left)
+                            finger_left_down = False
                     if fingers == 0:
                         old_y = 0
                         distance = 0
@@ -351,6 +353,10 @@ def read_tablet_fingers(args, shared_dict):
                         y_displace = 0
                         previous_coords = (0, 0)
                         zoom_skip_next_hotfix = 0
+                        if finger_left_down == True:
+                            finger_left_down = False
+                            mouse.release(pynput.mouse.Button.left)
+                            
                         # if MaxFingers == 1:
                         #     key.press(' ')
                         # #     key.release(' ')
@@ -374,6 +380,7 @@ def read_tablet_fingers(args, shared_dict):
                     MaxFingers = fingers
                     if MaxFingers == 2 and FingerMouseMode:
                         mouse.press(pynput.mouse.Button.left)
+                        finger_left_down = True
                         
 
             # Ignore finger input for X seconds after pen leaves
@@ -424,7 +431,7 @@ def read_tablet_fingers(args, shared_dict):
 
         #     # only move when x and y are updated for smoother mouse
         
-            if y < 25:
+            if y < 75:
                 if new_x or new_y:   
                     mapped_x, mapped_y = remap_finger(
                     x, y,
@@ -434,6 +441,10 @@ def read_tablet_fingers(args, shared_dict):
                     string = "pactl set-sink-volume  alsa_output.usb-D___M_Holdings_Inc._HD-DAC1-00.iec958-stereo "
                     string = string + str(int((1 - x / finger_width)*150)) + "%"
 
+
+
+                    string = "/home/inathero/Gits/lifx-configurator/lifx-configurator -d 0 -b " + str(int((1 - x / finger_width)*100))
+                    print(string)
                     # string = 'xrandr "--output" "DisplayPort-0" "--brightness" '
                     # string = string + str(((1 - x/ finger_width)))
                     # print(string)
@@ -443,28 +454,28 @@ def read_tablet_fingers(args, shared_dict):
                         break_counter = 0
                     # print(string)
         
-            elif (bool(shared_dict['pen_is_active']) is True and y > 950) or \
-                 (FingerMouseMode is True and y > 950):
-                 if new_x or new_y:    
+            # elif (bool(shared_dict['pen_is_active']) is True and y > 950) or \
+            #      (FingerMouseMode is True and y > 950):
+            #      if new_x or new_y:    
                 
-                    mapped_x, mapped_y = remap_finger(
-                    x, y,
-                    finger_width, finger_height,
-                    monitor.width, monitor.height,
-                    args.mode, args.orientation)
+            #         mapped_x, mapped_y = remap_finger(
+            #         x, y,
+            #         finger_width, finger_height,
+            #         monitor.width, monitor.height,
+            #         args.mode, args.orientation)
     
-                    if old_y == 0:
-                        old_y = mapped_y
-                        continue
-                    y_displace = (mapped_y - old_y);
-                    if y_displace > 50:
-                        # print("Pos %d", y_displace);
-                        mouse.scroll(0, 1)
-                        old_y = mapped_y 
-                    elif y_displace < -50:
-                        # print("Neg %d", y_displace);
-                        mouse.scroll(0, -1)
-                        old_y = mapped_y 
+            #         if old_y == 0:
+            #             old_y = mapped_y
+            #             continue
+            #         y_displace = (mapped_y - old_y);
+            #         if y_displace > 50:
+            #             # print("Pos %d", y_displace);
+            #             mouse.scroll(0, 1)
+            #             old_y = mapped_y 
+            #         elif y_displace < -50:
+            #             # print("Neg %d", y_displace);
+            #             mouse.scroll(0, -1)
+            #             old_y = mapped_y 
                         
             elif bool(shared_dict['pen_is_active']) is False:
                 if new_x or new_y:    
@@ -564,14 +575,14 @@ def read_tablet_fingers(args, shared_dict):
                             if zoom_skip_next_hotfix > 2:      
                                 zoom_skip_next_hotfix = 3 # prevent overflow?
                                 y_displace = (mapped_y - old_y);
-                                if y_displace > 50:
-                                    # print("Pos %d", y_displace);
-                                    mouse.scroll(0, 1)
-                                    old_y = mapped_y
-                                elif y_displace < -50:
-                                    # print("Neg %d", y_displace);
-                                    mouse.scroll(0, -1)
-                                    old_y = mapped_y
+                                # if y_displace > 50:
+                                #     # print("Pos %d", y_displace);
+                                #     mouse.scroll(0, 1)
+                                #     old_y = mapped_y
+                                # elif y_displace < -50:
+                                #     # print("Neg %d", y_displace);
+                                #     mouse.scroll(0, -1)
+                                #     old_y = mapped_y
                             else:
                                 old_y = mapped_y
                                     

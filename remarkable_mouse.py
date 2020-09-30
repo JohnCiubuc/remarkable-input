@@ -20,34 +20,40 @@ import socket
 import sys
 
 
-def monitorComms():
+def monitorComms(args, default_address):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect(('10.11.99.1', 13337))
+    s.connect((default_address, 13337))
     # s.sendall('Hello, world')
     while True:
         time.sleep(1)
         data = s.recv(1024)
     # s.close()
         if data != 0:
-            print('Received', data)
+            # print('Received', data)
             if data == b'':
                 break
-            tokens = data.decode("utf-8").split('==split==')
-            if len(tokens) > 1:
-                if tokens[0] == 'launch':
-                    os.system("xdg-open " + tokens[1])
-                    os.system(tokens[1])
-                    print(tokens[1])
+            
+            code, message = struct.unpack('H256s', data)
+            message = message[:message.find(0)].decode('utf-8')
+            # if code == 1:
+            #     os.system("xdg-open " + message)
+            # elif code == 2:
+            #     os.system(message)
+                
+            by = bytes("this is a test\0", "utf-8")
+            by += b"0" * (256 - len(by))
+            # print(by)
+            var = struct.pack('H256s', 5, by)
+            s.send(var)
+            print("sent:")
         
 def main():
     try:
-        M = Process(target=monitorComms)
-        M.start()
         # M.join()
         #10.11.99.1
-#192.168.1.238
+# 192.168.1.238
         default_address = '10.11.99.1'
-        # default_address = '192.168.1.238'
+        default_address = '192.168.1.244'
         parser = argparse.ArgumentParser(description="use reMarkable tablet as a mouse input")
         parser.add_argument('--debug', action='store_true', default=False, help="enable debug messages")
         parser.add_argument('--key', type=str, metavar='PATH', help="ssh private key")
@@ -60,6 +66,10 @@ def main():
         parser.add_argument('--evdev', action='store_true', default=False, help="use evdev to support pen pressure (requires root, Linux only)")
 
         args = parser.parse_args()
+        
+        
+        M = Process(target=monitorComms, args=(args, default_address))
+        M.start()
 
         # os.system('mkdir /tmp/remarkable')
         # os.system("sshfs root@10.11.99.1:/ /tmp/remarkable")  
