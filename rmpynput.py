@@ -443,8 +443,8 @@ def read_tablet_fingers(args, shared_dict):
 
 
 
-                    string = "/home/inathero/Gits/lifx-configurator/lifx-configurator -d 0 -b " + str(int((1 - x / finger_width)*100))
-                    print(string)
+                    # string = "/home/inathero/Gits/lifx-configurator/lifx-configurator -d 0 -b " + str(int((1 - x / finger_width)*100))
+                    # print(string)
                     # string = 'xrandr "--output" "DisplayPort-0" "--brightness" '
                     # string = string + str(((1 - x/ finger_width)))
                     # print(string)
@@ -575,14 +575,14 @@ def read_tablet_fingers(args, shared_dict):
                             if zoom_skip_next_hotfix > 2:      
                                 zoom_skip_next_hotfix = 3 # prevent overflow?
                                 y_displace = (mapped_y - old_y);
-                                # if y_displace > 50:
-                                #     # print("Pos %d", y_displace);
-                                #     mouse.scroll(0, 1)
-                                #     old_y = mapped_y
-                                # elif y_displace < -50:
-                                #     # print("Neg %d", y_displace);
-                                #     mouse.scroll(0, -1)
-                                #     old_y = mapped_y
+                                if y_displace > 50:
+                                    # print("Pos %d", y_displace);
+                                    mouse.scroll(0, 1)
+                                    old_y = mapped_y
+                                elif y_displace < -50:
+                                    # print("Neg %d", y_displace);
+                                    mouse.scroll(0, -1)
+                                    old_y = mapped_y
                             else:
                                 old_y = mapped_y
                                     

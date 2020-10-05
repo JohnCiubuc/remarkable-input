@@ -18,42 +18,61 @@ import time
 
 import socket
 import sys
+# import mpv_ipc1
 
 
 def monitorComms(args, default_address):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((default_address, 13337))
+    # from python_mpv_jsonipc import MPV
+    # mpv = MPV(start_mpv=False, ipc_socket="/tmp/mpv-socket")
     # s.sendall('Hello, world')
     while True:
-        time.sleep(1)
-        data = s.recv(1024)
+        time.sleep(0.01)
+        data = s.recv(258)
     # s.close()
         if data != 0:
             # print('Received', data)
             if data == b'':
                 break
-            
-            code, message = struct.unpack('H256s', data)
-            message = message[:message.find(0)].decode('utf-8')
-            # if code == 1:
-            #     os.system("xdg-open " + message)
-            # elif code == 2:
-            #     os.system(message)
+            try:
+                # print("receive length - ", len(data))
+                code, message = struct.unpack('H256s', data)
+                message = message[:message.find(0)].decode('utf-8')
+                if code == 1:
+                    print("code 1")
+                    mpv.volume = 20 
+                    # os.system("xdg-open " + message)
+                elif code == 2:
+                    
+                    # mpv.volume = 100 
+                    
+                    mpv.command("percent-pos", "40")
+                    # os.system(message)
+                elif code == 3:
+                    print("code 3 message:, ", message);
+                    # mpv.command("percent-pos", message)
+                    os.system("echo '{ \"command\": [\"set_property\", \"percent-pos\", \""+message+"\"] }' | socat - /tmp/mpv-socket")
                 
-            by = bytes("this is a test\0", "utf-8")
-            by += b"0" * (256 - len(by))
-            # print(by)
-            var = struct.pack('H256s', 5, by)
-            s.send(var)
-            print("sent:")
+            except :
+                pass
+                
+           # by = bytes("this is a test\0", "utf-8")
+            # by += b"0" * (256 - len(by))
+            # var = struct.pack('H256s', 5, by)
+            # s.send(var)
+            # print("sent:")
         
 def main():
     try:
         # M.join()
         #10.11.99.1
 # 192.168.1.238
+        # from python_mpv_jsonipc import MPV
+        # mpv = MPV(start_mpv=False, ipc_socket="/tmp/mpv-socket")
+        # mpv.command("percent-pos", "40")
         default_address = '10.11.99.1'
-        default_address = '192.168.1.244'
+        # default_address = '192.168.1.244'
         parser = argparse.ArgumentParser(description="use reMarkable tablet as a mouse input")
         parser.add_argument('--debug', action='store_true', default=False, help="enable debug messages")
         parser.add_argument('--key', type=str, metavar='PATH', help="ssh private key")
